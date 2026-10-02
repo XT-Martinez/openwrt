@@ -80,6 +80,21 @@ function renderStatus(d) {
 		]);
 	});
 
+	// Raw-IP modems reach the firmware through an rmnet_rx node pair rather
+	// than a port; their counts start when the interface was bound (ifup).
+	var modemRows = (d.modems || []).map(function(m) {
+		return E('tr', { 'class': 'tr' }, [
+			E('td', { 'class': 'td', 'data-title': _('Port') }, [ m.netdev + ' (' + _('modem') + ')' ]),
+			E('td', { 'class': 'td', 'data-title': 'if_num' }, [ m.n2h + '/' + m.h2n ]),
+			E('td', { 'class': 'td', 'data-title': _('Started') }, [ _('yes') ]),
+			E('td', { 'class': 'td', 'data-title': _('TX offloaded') }, [ offl(m.tx_offloaded, m.tx_offload_pct) ]),
+			E('td', { 'class': 'td', 'data-title': _('TX via host') }, [ String(m.tx_host_pkts) ]),
+			E('td', { 'class': 'td', 'data-title': _('RX offloaded') }, [ offl(m.rx_offloaded, m.rx_offload_pct) ]),
+			E('td', { 'class': 'td', 'data-title': _('RX to host') }, [ String(m.rx_host_pkts) ])
+		]);
+	});
+	portRows = portRows.concat(modemRows);
+
 	return E('div', {}, [
 		E('p', {}, stateBadge(d.state)),
 		E('table', { 'class': 'table' }, [
@@ -118,7 +133,7 @@ function renderStatus(d) {
 				E('td', { 'class': 'td', 'colspan': '7' }, _('No ports attached — host stack'))
 			])
 		])),
-		E('p', {}, E('em', {}, _('Offloaded packets are forwarded by the firmware and never reach the host. "via host" / "to host" is the host↔firmware exception path — what was not offloaded — so low numbers there mean offload is working. Broadcast and multicast discovery, connection setup, short-lived flows and traffic addressed to the router itself always take that path: a flow is only offloaded once it is established, so a quiet port that carries little else shows a low offloaded share. Port totals are on Status → Overview.')))
+		E('p', {}, E('em', {}, _('Offloaded packets are forwarded by the firmware and never reach the host. "via host" / "to host" is the host↔firmware exception path — what was not offloaded — so low numbers there mean offload is working. Broadcast and multicast discovery, connection setup, short-lived flows and traffic addressed to the router itself always take that path: a flow is only offloaded once it is established, so a quiet port that carries little else shows a low offloaded share. Port totals are on Status → Overview. A modem row counts from when its interface came up, and its if_num is the NSS-to-host/host-to-NSS node pair.')))
 	]);
 }
 

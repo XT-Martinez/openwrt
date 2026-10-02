@@ -276,4 +276,34 @@ check 'mesh: a real vdev is reported as offloaded' \
 check 'mesh: a real vdev says so in the text report' \
 	1 "$(run | grep -c 'mesh offloaded')"
 
+# ---- raw-IP modems ---------------------------------------------------------
+# qca-nss-drv's stats/rmnet_rx_bind (aw1000-feed patch 0120). Distinct values
+# per field, so a counter read from the wrong key cannot match by accident.
+
+modem_field() { # modem_field <json> <netdev> <key>
+	printf '%s' "$1" | tr '{' '\n' | grep "\"netdev\":\"$2\"," |
+		tr ',' '\n' | sed -n "s/^\"$3\"://p" | head -1
+}
+
+out="$(run -j)"
+check 'modem: no bind file, no modems' '[]' \
+	"$(printf '%s' "$out" | sed -n 's/.*"modems":\(\[\]\).*/\1/p')"
+
+echo 'wwan0_1 n2h=32 h2n=33 rx=9000 tx=4000 to_fw=8800 to_host=300 fw_tx=3000' \
+	> "$drv/rmnet_rx_bind"
+out="$(run -j)"
+
+check 'modem: node pair' '32' "$(modem_field "$out" wwan0_1 n2h)"
+check 'modem: offloaded RX is handed to the firmware minus returned' \
+	8500 "$(modem_field "$out" wwan0_1 rx_offloaded)"
+check 'modem: host RX is the rest of the netdev total' \
+	500 "$(modem_field "$out" wwan0_1 rx_host_pkts)"
+check 'modem: offloaded TX is what the firmware transmitted' \
+	3000 "$(modem_field "$out" wwan0_1 tx_offloaded)"
+check 'modem: host TX is the netdev total minus the offloaded' \
+	1000 "$(modem_field "$out" wwan0_1 tx_host_pkts)"
+check 'modem: offload share' '75.0' "$(modem_field "$out" wwan0_1 tx_offload_pct)"
+check 'modem: listed in the text report' \
+	1 "$(run | grep -c 'wwan0_1 *32/33')"
+
 exit "$fail"
