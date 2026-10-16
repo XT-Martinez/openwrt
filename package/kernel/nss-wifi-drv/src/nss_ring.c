@@ -180,7 +180,8 @@ static void nss_notify_recv(struct nss_core *core,
 
 	if (NSS_INTERFACE_NUM_GET(ncm->interface) == NSS_INTERFACE_WIFILI)
 		nss_wifili_notify(core, ncm, desc->payload_len);
-	else if (!nss_mesh_notify(core, ncm, desc->payload_len))
+	else if (!nss_xlat_notify(ncm, desc->payload_len) &&
+		 !nss_mesh_notify(core, ncm, desc->payload_len))
 		nss_wifili_vdev_notify(core, ncm, desc->payload_len);
 }
 
@@ -770,7 +771,8 @@ static int nss_poll_n2h(struct napi_struct *napi, int budget)
 				 * firmware did not route comes back in its own
 				 * buffer, as a packet rather than a completion.
 				 */
-				if (nss_rawip_recv(core, desc, skb))
+				if (nss_rawip_recv(core, desc, skb) ||
+				    nss_xlat_recv(core, desc, skb))
 					goto next;
 				dma_unmap_single(core->dev, NSS_SKB_CB(skb)->dma,
 						 skb_end_pointer(skb) - skb->head,
@@ -784,6 +786,7 @@ static int nss_poll_n2h(struct napi_struct *napi, int budget)
 				}
 				atomic_dec(&core->buffers_queued);
 				if (nss_rawip_recv(core, desc, skb) ||
+				    nss_xlat_recv(core, desc, skb) ||
 				    nss_mesh_recv(core, napi, desc, skb) ||
 				    nss_data_recv(core, napi, desc, skb))
 					goto next;
